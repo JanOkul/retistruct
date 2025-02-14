@@ -98,7 +98,7 @@ plotProjection <- function(max.proj.dim=getOption("max.proj.dim"),
 
 
 ## Plot in edit pane
-do.plot <- function(markup=NULL, state, input, output) {
+do.plot <- function(markup=NULL, state, input, output, xs=NULL, ys=NULL, pids=NULL) {
   if (is.null(markup)) {
     markup = ("markup" %in% input$show)
   }
@@ -145,6 +145,11 @@ do.plot <- function(markup=NULL, state, input, output) {
                ids=input$ids,
                mesh=FALSE,
                scalebar=1)
+
+      if (!is.null(pids)) {
+        points(xs, ys, col = getOption("TF.col"), pch = 3)
+        text(xs, ys, labels = pids, pos = 3, col = getOption("TF.col"))
+      }
     })
     output$plot2 <- renderPlot({
       par(mar=c(0.7, 0.7, 0.7, 0.7))
@@ -157,7 +162,6 @@ do.plot <- function(markup=NULL, state, input, output) {
   }
   set.status(output, "")
 }
-
 
 h.open <- function(state, input, output, session) {
   req(state$dataset)
@@ -208,12 +212,14 @@ h.save <- function(h, state, ...) {
 h.reconstruct <- function(h, state, input, output, session, ...) {
   unsaved.data(TRUE, state)
   enable.widgets(FALSE, state)
+  showNotification("Reconstructing... May take a while.", duration=30, id="rec", type="message")
   catchErrorsRecordWarnings({
     state$r <- retistruct.reconstruct(state$a, report=function(m) set.status(output, m),
                                       plot.3d=getOption("show.sphere"), 
                                       shinyOutput=output)
   }, warning=function(w) h.warning(w, state, session), error=function(e) h.error(e, session))  
   enable.widgets(TRUE, state)
+  removeNotification("rec")
   do.plot(state=state, input=input, output=output)
   set.status(output, "")
 }
@@ -249,15 +255,22 @@ reset.state <- function(state) {
 }
 
 ## Convenience function for capturing a click to the server state
-add.point <- function(state, x, y) {
-  state$points_x <- unique(c(state$points_x, x))
-  state$points_y <- unique(c(state$points_y, y))
+add.point <- function(state, x, y, pid) {
+  new_pids <- unique(c(state$pids, pid))
+  print(paste(x, y, pid, new_pids, state$pids))
+  ## Only add unique points
+  if (length(new_pids) > length(state$pids)) {
+    state$points_x <- c(state$points_x, x)
+    state$points_y <- c(state$points_y, y)
+    state$pids <- new_pids
+  }
 }
 
 ## Convencience function for resetting captured clicks
 clear.points <- function(state) {
   state$points_x <- c()
   state$points_y <- c()
+  state$pids <- c()
 }
 
 ## A simplified version of the built in identify function, that doesn't require
@@ -271,33 +284,20 @@ h.identify <- function(click_x, click_y, points_x, points_y) {
 }
 
 ## Add tear handler
-h.add <- function(state, input, output, session, xs, ys, ...) {
-  P <- state$a$getPoints()
-  pids <- c()
-  for (i in 0:3) {
-    pids <- c(pids, h.identify(xs[i], ys[i], P[,"X"], P[,"Y"]))
-  }
-  
+h.add <- function(state, input, output, session, xs, ys, pids, ...) {
   catchErrorsRecordWarnings({
-      state$a$addTear(pids)
-    }, error=function(e) h.error(e, session), warning=function(w) h.warning(w, state, session))  
+    state$a$addTear(pids)
+  }, error=function(e) h.error(e, session), warning=function(w) h.warning(w, state, session))  
   do.plot(state=state, input=input, output=output)   #DOTHIS
 }
 
 ## Handler for moving a point in a tear
-h.move <- function(state, input, output, session, xs, ys, ...) {
-  P <- state$a$getPoints()
-  
-  id1 <- h.identify(xs[1], ys[1], P[,"X"], P[,"Y"])
-  
+h.move <- function(state, input, output, session, xs, ys, id1, id2, ...) {
   ## Locate tear ID in which the point occurs
   tid <- state$a$whichTear(id1)
   
   ## If there is a tear in which it occurs, select a point to move it to
   if (!is.na(tid)) {
-    ## Select second point
-    id2 <- h.identify(xs[2], ys[2], P[,"X"], P[,"Y"])
-    
     ## Get point ids of exsiting tear
     pids <- state$a$getTear(tid)
     
@@ -319,18 +319,13 @@ h.move <- function(state, input, output, session, xs, ys, ...) {
 }
 
 ## Remove tear handler
-h.remove <- function(state, input, output, x, y, ...) {
-  P <- state$a$getPoints()
-  id <- c()
-  id <- h.identify(x, y, P[,"X"], P[,"Y"])
+h.remove <- function(state, input, output, x, y, id, ...) {
   state$a$removeTear(state$a$whichTear(id))
   do.plot(state=state, input=input, output=output)   #DOTHIS
 }
 
 ## Mark nasal handler
-h.mark.n <- function(state, input, output, session, x, y, ...) {
-  P <- state$a$getPoints()
-  id <- h.identify(x, y, P[,"X"], P[,"Y"])
+h.mark.n <- function(state, input, output, session, x, y, id, ...) {
   catchErrorsRecordWarnings({
     state$a$setFixedPoint(id, "Nasal")
   }, warning=function(w) h.warning(w, state, session), error=function(e) h.error(e, session))  
@@ -338,9 +333,7 @@ h.mark.n <- function(state, input, output, session, x, y, ...) {
 }
 
 ## Mark dorsal handler
-h.mark.d <- function(state, input, output, session, x, y, ...) {
-  P <- state$a$getPoints()
-  id <- h.identify(x, y, P[,"X"], P[,"Y"])
+h.mark.d <- function(state, input, output, session, x, y, id, ...) {
   catchErrorsRecordWarnings({
     state$a$setFixedPoint(id, "Dorsal")
   }, warning=function(w) h.warning(w, state, session), error=function(e) h.error(e, session))  

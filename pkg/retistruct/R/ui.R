@@ -88,13 +88,20 @@ ui <- fluidPage(
   useShinyjs(),
   ## CSS class to turn cancel button red when active.
   tags$style(HTML("
-      .red {
-         background-color: red;
+    .red {
+        background-color: red;
         color: white;
         font-weight: bold;
         padding: 5px;
-      }
-    ")),
+    }
+
+    #plot1 {
+        transition: none !important;
+
+        animation: none !important;
+        opacity: 1 !important;
+    }
+  ")),
   
   titlePanel(
     windowTitle=version.string(),
@@ -176,7 +183,7 @@ ui <- fluidPage(
           checkboxGroupInput("ids", "IDs", choices=c("All"), selected =c("All")),
         )
       ),
-      width = 3 # Sidebar width
+      width = 2 # Sidebar width
     ),
     
     mainPanel(
@@ -188,13 +195,14 @@ ui <- fluidPage(
               width=6,
               actionButton("bitmap1", "BitMap"),
               actionButton("pdf1", "PDF"),
-              plotOutput("plot1", height="60vh", click="plot1click")
+              plotOutput("plot1", width="100%", height="80vh", fill=TRUE, click="plot1click")
             ),
             column(
               width=6,
               actionButton("bitmap2", "BitMap"),
               actionButton("pdf2", "PDF"),
-              plotOutput("plot2", height="60vh")
+              plotOutput("plot2", width="100%", height="80vh", fill=TRUE)
+              
             ),
           )
         ),
@@ -202,7 +210,8 @@ ui <- fluidPage(
           "3D Panel",
           rglwidgetOutput("plot3"),
         )
-      )
+      ), 
+      width=10
     )
   ),
   textOutput("status")

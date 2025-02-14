@@ -37,6 +37,7 @@ server <- function(input, output, session) {
   ## The x and y coordinates captured by the click handler
   state$points_x <- c()
   state$points_y <- c()
+  state$pids <- c()
   extdata       <- file.path(system.file(package = "retistruct"), "extdata")
   extdata.demos <- file.path(system.file(package = "retistructdemos"), "extdata")
   
@@ -183,10 +184,15 @@ server <- function(input, output, session) {
   observeEvent(input$plot1click, {
     ## Add tear handler
     if (state$mode==1) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      ## Identifies each individual point and adds it if it is unique
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
+      do.plot(state=state, input=input, output=output, xs=state$points_x, ys=state$points_y, pids=state$pids)
+      
       ## Call the handler once 3 points are captured.
       if (length(state$points_x)==3) {
-        h.add(state, input, output, session, state$points_x, state$points_y)
+        h.add(state, input, output, session, state$points_x, state$points_y, state$pids)
         reset.state(state)
         set.status(output, "Added tear successfully")
         delay(time_out, {set.status(output, "")})
@@ -195,13 +201,18 @@ server <- function(input, output, session) {
     
     ## Move points handler
     if (state$mode==2) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
+      
       if (length(state$points_x) == 1) {
         set.status(output, paste("Click on point to move it to.", abort.text))
+        id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+        add.point(state, input$plot1click$x, input$plot1click$y, id)
       }
       ## Call the handler once 2 points are captured.
       if (length(state$points_x)==2) {
-        h.move(state, input, output, session, state$points_x, state$points_y)
+        h.move(state, input, output, session, state$points_x, state$points_y, state$pids[1], state$pids[2])
         reset.state(state)
         set.status(output, "Moved points successfully")
         delay(time_out, {set.status(output, "")})
@@ -210,11 +221,13 @@ server <- function(input, output, session) {
     
     ## Remove tear handler
     if (state$mode==3) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
       ## Whilst if statement not necessary, it adds redundancy in case there is
       ## more than one point added.
       if (length(state$points_x)==1) {
-        h.remove(state, input, output, state$points_x, state$points_y)
+        h.remove(state, input, output, state$points_x, state$points_y, state$pids[1])
         reset.state(state)
         set.status(output, "Removed tear successfully")
         delay(time_out, {set.status(output, "")})
@@ -223,11 +236,13 @@ server <- function(input, output, session) {
     
     ## Mark nasal handler
     if (state$mode==4) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
       ## Whilst if statement not necessary, it adds redundancy in case there is
       ## more than one point added.
       if (length(state$points_x)==1) {
-        h.mark.n(state, input, output, session, state$points_x, state$points_y)
+        h.mark.n(state, input, output, session, state$points_x, state$points_y, state$pids[1])
         reset.state(state)
         set.status(output, "Marked nasal successfully")
         delay(time_out, {set.status(output, "")})
@@ -236,11 +251,13 @@ server <- function(input, output, session) {
     
     ## Mark dorsal handler
     if (state$mode==5) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
       ## Whilst if statement not necessary, it adds redundancy in case there is
       ## more than one point added.
       if (length(state$points_x)==1) {
-        h.mark.d(state, input, output, session, state$points_x, state$points_y)
+        h.mark.d(state, input, output, session, state$points_x, state$points_y, state$pids[1])
         reset.state(state)
         set.status(output, "Marked dorasal successfully")
         delay(time_out, {set.status(output, "")})
@@ -249,7 +266,9 @@ server <- function(input, output, session) {
     
     ## Mark OD handler
     if (state$mode==6) {
-      add.point(state, input$plot1click$x, input$plot1click$y)
+      P <- state$a$getPoints()
+      id <- h.identify(input$plot1click$x, input$plot1click$y, P[,"X"], P[,"Y"])
+      add.point(state, input$plot1click$x, input$plot1click$y, id)
       ## Whilst if statement not necessary, it adds redundancy in case there is
       ## more than one point added.
       if (length(state$points_x)==1) {
